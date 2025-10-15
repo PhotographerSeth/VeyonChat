@@ -25,31 +25,35 @@ jobs:
 
     # 3. Check out the official Veyon source code
     - name: Check out Veyon repository
-      # FIX: Use a more robust checkout process for full history
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: veyon/veyon
         path: veyon_src
         ref: 'v4.9.7'
         fetch-depth: 0
-        lfs: true
 
-    # 4. Build Veyon from source
+    # 4. DEFINITIVE FIX: Modify the Veyon build script to look for Qt5 instead of Qt6
+    - name: Patch Veyon CMakeLists
+      shell: pwsh
+      run: |
+        $cmakeFile = "veyon_src/CMakeLists.txt"
+        (Get-Content $cmakeFile) -replace 'find_package(Qt6 REQUIRED Core Gui Network Svg Widgets)', 'find_package(Qt5 REQUIRED Core Gui Network Svg Widgets)' | Set-Content $cmakeFile
+        echo "Successfully patched CMakeLists.txt to use Qt5."
+
+    # 5. Build Veyon from source
     - name: Build Veyon
       shell: cmd
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
         cd veyon_src
-
-        rem Add a diagnostic step to ensure the Qt5_Dir variable is set
-        echo "Qt5_Dir is set to: %Qt5_Dir%"
-
-        rem FIX: Pass the Qt5 directory directly to CMake's Qt6_DIR variable
-        cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DQt6_DIR=%Qt5_Dir%
         
+        rem Now we only need to tell CMake where to find Qt5, which it is now looking for
+        set CMAKE_PREFIX_PATH=%Qt5_Dir%
+
+        cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
 
-    # 5. Build the VeyonChat plugin
+    # 6. Build the VeyonChat plugin
     - name: Build Plugin
       shell: cmd
       run: |
@@ -61,7 +65,7 @@ jobs:
       env:
         QT_PLUGIN_PATH: ${{ env.Qt5_Dir }}\plugins
 
-    # 6. Package the compiled files into a zip archive
+    # 7. Package the compiled files into a zip archive
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
