@@ -25,13 +25,14 @@ jobs:
 
     # 3. Check out the official Veyon source code
     - name: Check out Veyon repository
-      uses: actions/checkout@v4
+      # FIX: Use a more robust checkout process for full history
+      uses: actions/checkout@v3
       with:
         repository: veyon/veyon
         path: veyon_src
         ref: 'v4.9.7'
-        # FIX: Download all history so Veyon's build script can get version info
         fetch-depth: 0
+        lfs: true
 
     # 4. Build Veyon from source
     - name: Build Veyon
@@ -39,11 +40,13 @@ jobs:
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
         cd veyon_src
-        
-        rem FIX: Explicitly tell CMake where to find our Qt5 installation
-        set CMAKE_PREFIX_PATH=%Qt5_Dir%
 
-        cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
+        rem Add a diagnostic step to ensure the Qt5_Dir variable is set
+        echo "Qt5_Dir is set to: %Qt5_Dir%"
+
+        rem FIX: Pass the Qt5 directory directly to CMake's Qt6_DIR variable
+        cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DQt6_DIR=%Qt5_Dir%
+        
         cmake --build build --config Release
 
     # 5. Build the VeyonChat plugin
