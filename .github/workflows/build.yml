@@ -14,7 +14,7 @@ jobs:
       QT_VERSION: "6.8.3"
 
     steps:
-      # 1) Checkout Veyon source (get full history to quiet version logic)
+      # 1) Checkout Veyon source (full history quiets version logic)
       - name: Checkout Veyon
         uses: actions/checkout@v4
         with:
@@ -23,14 +23,13 @@ jobs:
           path: veyon
           fetch-depth: 0
 
-      # 2) Checkout YOUR plugin repo into veyon/plugins/chat
+      # 2) Checkout YOUR plugin into veyon/plugins/chat (keep your filenames as-is)
       - name: Checkout VeyonChat into plugins/chat
         uses: actions/checkout@v4
         with:
           path: veyon/plugins/chat
 
-      # 3) Install Qt (MSVC x64) + REQUIRED MODULES
-      #    Core5Compat == 'qt5compat' in aqt/jurplel action
+      # 3) Install Qt + REQUIRED modules (space-separated!)
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -38,15 +37,21 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: "qt5compat,qttools,qtsvg"
+          modules: "qt5compat qttools qtsvg"
 
-      # 4) Set up MSVC environment (auto-detect latest toolset)
+      # (Optional) Show which modules are available for this version/arch if you ever need to debug
+      # - name: List available Qt modules (debug)
+      #   shell: pwsh
+      #   run: |
+      #     python -m aqt list-qt windows desktop --modules $env:QT_VERSION win64_msvc2022_64
+
+      # 4) Set up MSVC toolchain
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      # 5) Verify compiler safely (avoid D8003)
+      # 5) Safe compiler check (no nonzero exit like D8003)
       - name: Verify MSVC toolchain
         shell: pwsh
         run: |
@@ -54,7 +59,7 @@ jobs:
           where cl
           where link
 
-      # 6) Enable your plugin in the Veyon tree (workspace-only patch)
+      # 6) Enable your plugin inside the Veyon workspace (workspace-only patch)
       - name: Enable chat plugin
         shell: pwsh
         working-directory: veyon/plugins
@@ -71,7 +76,7 @@ jobs:
         working-directory: veyon
         run: cmake --build build --config Release --parallel
 
-      # 8) Gather plugin artifacts
+      # 8) Collect plugin artifacts
       - name: Gather artifacts
         shell: pwsh
         run: |
@@ -95,7 +100,7 @@ jobs:
               Copy-Item -Destination $out -Force
           }
 
-      # 9) Upload the built plugin
+      # 9) Upload artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
