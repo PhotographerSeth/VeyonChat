@@ -32,28 +32,32 @@ jobs:
         ref: 'v4.9.7'
         fetch-depth: 0
 
-    # 4. DEFINITIVE FIX: Modify the Veyon build script to look for Qt5 instead of Qt6
+    # 4. CORRECTED FIX: Modify the Veyon build script
     - name: Patch Veyon CMakeLists
       shell: pwsh
       run: |
         $cmakeFile = "veyon_src/CMakeLists.txt"
-        (Get-Content $cmakeFile) -replace 'find_package(Qt6 REQUIRED Core Gui Network Svg Widgets)', 'find_package(Qt5 REQUIRED Core Gui Network Svg Widgets)' | Set-Content $cmakeFile
+        (Get-Content $cmakeFile) -replace 'find_package\(Qt6', 'find_package(Qt5' | Set-Content $cmakeFile
         echo "Successfully patched CMakeLists.txt to use Qt5."
 
-    # 5. Build Veyon from source
+    # 5. NEW: Verify that the patch was successful
+    - name: Verify Patch
+      shell: pwsh
+      run: |
+        echo "Verifying contents of veyon_src/CMakeLists.txt:"
+        Get-Content veyon_src/CMakeLists.txt | Select-String -Pattern "find_package"
+
+    # 6. Build Veyon from source
     - name: Build Veyon
       shell: cmd
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
         cd veyon_src
-        
-        rem Now we only need to tell CMake where to find Qt5, which it is now looking for
         set CMAKE_PREFIX_PATH=%Qt5_Dir%
-
         cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
 
-    # 6. Build the VeyonChat plugin
+    # 7. Build the VeyonChat plugin
     - name: Build Plugin
       shell: cmd
       run: |
@@ -65,7 +69,7 @@ jobs:
       env:
         QT_PLUGIN_PATH: ${{ env.Qt5_Dir }}\plugins
 
-    # 7. Package the compiled files into a zip archive
+    # 8. Package the compiled files into a zip archive
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
