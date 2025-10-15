@@ -1,4 +1,4 @@
-# This is the GitHub Actions workflow file.
+# This is the GitHub Actions workflow file. 
 # It automatically builds the VeyonChat plugin whenever you push code.
 
 name: Build Veyon Plugin
