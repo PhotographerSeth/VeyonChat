@@ -1,0 +1,25 @@
+{
+    "name": "VeyonChat",
+    "vendor": "YourName",
+    "version": "1.0.0",
+    "description": "A plugin for bidirectional chat between Veyon Master and clients.",
+    "type": "Veyon::Plugin",
+    "binary": "VeyonChat",
+    "dependencies": [
+        "VeyonCore",
+        "VeyonMaster",
+        "VeyonClient"
+    ],
+    "features": {
+        "master": [
+            {
+                "id": "VeyonChat.MasterFeature",
+                "name": "Chat",
+                "category": "Communication",
+                "description": "Open the Veyon Chat window.",
+                "icon": "qrc:/icon.svg",
+                "permission": "feature/chat"
+            }
+        ]
+    }
+}

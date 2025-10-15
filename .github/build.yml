@@ -1,0 +1,63 @@
+# This is the GitHub Actions workflow file.
+# It automatically builds the VeyonChat plugin whenever you push code.
+
+name: Build Veyon Plugin
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  # Triggers the workflow on push events to the main branch
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    # 1. Check out your plugin's source code
+    - name: Check out plugin repository
+      uses: actions/checkout@v4
+      with:
+        path: plugin_src
+
+    # 2. Install the required version of Qt
+    - name: Install Qt
+      uses: miroslavr/install-qt-action@v1
+      with:
+        version: '5.15.2'
+        arch: 'win64_msvc2019_64'
+
+    # 3. Check out the official Veyon source code
+    - name: Check out Veyon repository
+      uses: actions/checkout@v4
+      with:
+        repository: veyon/veyon
+        path: veyon_src
+        ref: 'v4.8.3' # Use a specific, stable tag for Veyon
+
+    # 4. Build Veyon from source
+    - name: Build Veyon
+      shell: cmd
+      run: |
+        cd veyon_src
+        cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+
+    # 5. Build the VeyonChat plugin
+    - name: Build Plugin
+      shell: cmd
+      run: |
+        cd plugin_src
+        set VEYON_BUILD_DIR=%GITHUB_WORKSPACE%/veyon_src/build
+        qmake VeyonChat.pro
+        nmake /f Makefile.Release
+
+    # 6. Package the compiled files into a zip archive
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VeyonChat-Plugin-Windows
+        path: |
+          plugin_src/release/VeyonChat.dll
+          plugin_src/plugin.json
