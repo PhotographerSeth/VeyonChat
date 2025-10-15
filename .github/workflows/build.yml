@@ -31,18 +31,18 @@ jobs:
         path: veyon_src
         ref: 'v4.9.7'
 
-    # 4. Set up the Visual Studio developer environment (The correct, standard way)
+    # 4. Set up the Visual Studio developer environment
     - name: Setup MSVC Developer Environment
       uses: microsoft/setup-msvc-dev@v2
 
-    # 5. Build Veyon from source (Using default shell)
+    # 5. Build Veyon from source
     - name: Build Veyon
       run: |
         cd veyon_src
         cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
 
-    # 6. Build the VeyonChat plugin (Using default shell)
+    # 6. Build the VeyonChat plugin
     - name: Build Plugin
       run: |
         cd plugin_src
@@ -50,7 +50,6 @@ jobs:
         qmake VeyonChat.pro
         nmake /f Makefile.Release
       env:
-        # This is needed because we are now in PowerShell
         QT_PLUGIN_PATH: ${{ env.Qt5_Dir }}\plugins
 
     # 7. Package the compiled files into a zip archive
