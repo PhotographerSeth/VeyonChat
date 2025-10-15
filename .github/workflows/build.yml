@@ -30,6 +30,8 @@ jobs:
         repository: veyon/veyon
         path: veyon_src
         ref: 'v4.9.7'
+        # FIX: Download all history so Veyon's build script can get version info
+        fetch-depth: 0
 
     # 4. Build Veyon from source
     - name: Build Veyon
@@ -37,6 +39,10 @@ jobs:
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
         cd veyon_src
+        
+        rem FIX: Explicitly tell CMake where to find our Qt5 installation
+        set CMAKE_PREFIX_PATH=%Qt5_Dir%
+
         cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
 
