@@ -14,7 +14,7 @@ jobs:
       QT_VERSION: "6.8.3"
 
     steps:
-      # 1) Checkout Veyon source (workspace only; no upstream changes)
+      # 1) Checkout Veyon source (workspace only)
       - name: Checkout Veyon
         uses: actions/checkout@v4
         with:
@@ -28,7 +28,7 @@ jobs:
         with:
           path: veyon/plugins/chat
 
-      # 3) Install Qt (MSVC x64). Adjust modules if your code needs more.
+      # 3) Install Qt (MSVC x64)
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -36,23 +36,23 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          # modules: "qt5compat"
+          # add modules if needed (e.g., qt5compat, network)
 
-      # 4) Set up MSVC dev environment (do NOT pin toolset)
-      - name: MSVC DevCmd
+      # 4) Set up MSVC environment (auto-detects latest toolset)
+      - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      # (Optional) Verify the compiler on PATH for easier debugging
+      # 5) Verify compiler safely (no D8003 error)
       - name: Verify MSVC toolchain
         shell: pwsh
         run: |
-          cl /Bv
+          cl /? > $null
           where cl
           where link
 
-      # 5) Enable your plugin in the Veyon tree (workspace-only patch)
+      # 6) Enable your plugin in the Veyon tree (workspace-only patch)
       - name: Enable chat plugin
         shell: pwsh
         working-directory: veyon/plugins
@@ -60,7 +60,7 @@ jobs:
           $cm = Join-Path $PWD "CMakeLists.txt"
           Add-Content -Path $cm -Value "`n# Injected by CI: build chat plugin`nadd_subdirectory(chat)`n"
 
-      # 6) Configure + build (Release)
+      # 7) Configure + build
       - name: Configure (CMake)
         working-directory: veyon
         run: cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
@@ -69,7 +69,7 @@ jobs:
         working-directory: veyon
         run: cmake --build build --config Release --parallel
 
-      # 7) Collect plugin artifacts
+      # 8) Gather plugin artifacts
       - name: Gather artifacts
         shell: pwsh
         run: |
@@ -77,13 +77,13 @@ jobs:
           $out = "artifacts"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
 
-          # Typical location for plugin output
+          # Common output directory
           $pluginDir = Join-Path $b "plugins/chat"
           if (Test-Path $pluginDir) {
             Copy-Item -Recurse "$pluginDir/*" $out/
           }
 
-          # Include plugin.json if not already copied by install rules
+          # Include plugin.json if not installed automatically
           if (Test-Path "veyon/plugins/chat/plugin.json") {
             Copy-Item "veyon/plugins/chat/plugin.json" "$out/" -Force
           } elseif (Test-Path "veyon/plugins/chat/plugins/VeyonChat/plugin.json") {
@@ -92,10 +92,11 @@ jobs:
 
           # Fallback: find chat.dll anywhere in the build tree
           if (-not (Get-ChildItem $out -Filter "chat.*" -Recurse)) {
-            Get-ChildItem -Path $b -Recurse -Include "chat.dll","chat.pdb" | Copy-Item -Destination $out -Force
+            Get-ChildItem -Path $b -Recurse -Include "chat.dll","chat.pdb" |
+              Copy-Item -Destination $out -Force
           }
 
-      # 8) Upload the built plugin
+      # 9) Upload the built plugin
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
