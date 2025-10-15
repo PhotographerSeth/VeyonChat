@@ -1,5 +1,5 @@
-# This is the GitHub Actions workflow file. 
-# It automatically builds the VeyonChat plugin whenever you push code.
+# This is the updated GitHub Actions workflow file.
+# It now uses a reliable and currently maintained action to install Qt.
 
 name: Build Veyon Plugin
 
@@ -22,8 +22,10 @@ jobs:
         path: plugin_src
 
     # 2. Install the required version of Qt
+    #    UPDATED ACTION: Switched from the unavailable 'miroslavr' action
+    #    to the well-maintained 'jurplel' action.
     - name: Install Qt
-      uses: miroslavr/install-qt-action@v1
+      uses: jurplel/install-qt-action@v3
       with:
         version: '5.15.2'
         arch: 'win64_msvc2019_64'
