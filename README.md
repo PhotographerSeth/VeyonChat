@@ -37,19 +37,3 @@ Client to Master: In ClientChatDialog.cpp, you'll use serviceConnection()->execu
 
 Receiving RPCs: You'll need to register handlers on both sides to listen for incoming RPCs and call the appropriate functions (e.g., displayMessage).
 
-Questions for You
-To help refine the features, here are a few things to think about:
-
-UI Design: The current code creates a very basic UI. Are you comfortable using Qt Designer to create a more polished MasterChatDialog.ui and ClientChatDialog.ui file, or would you prefer to continue defining the UI in code?
-
-Master's Chat View: How should the Master window handle chats with multiple clients at once?
-
-Option A: The client list on the left simply filters the one main chat view.
-
-Option B: A tabbed interface, where each selected client gets their own chat tab.
-
-Option C: A single chat history that shows messages from all clients, prefixed with their name.
-
-Client Status: For the "typing" or "away" indicators, the client-side application will need to detect this (e.g., text changing in the input box, or no mouse/keyboard activity for a few minutes) and send a specific RPC to the master to update its status. Are you ready to tackle that logic next?
-
-Let me know your thoughts on these questions, and we can proceed with the next set of code refinements!
