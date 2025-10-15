@@ -1,17 +1,7 @@
-# This is the updated GitHub Actions workflow file.
-#
-# Key Fixes:
-# 1. Reinstated the official 'microsoft/setup-msvc-dev' action. This is the
-#    most reliable way to add the Visual Studio build tools (like nmake.exe)
-#    to the command path.
-# 2. Updated the Veyon source code version to the user-specified 'v4.9.7'.
-
 name: Build Veyon Plugin
 
 on:
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-  # Triggers the workflow on push events to the main branch
   push:
     branches: [ "main" ]
 
@@ -39,28 +29,29 @@ jobs:
       with:
         repository: veyon/veyon
         path: veyon_src
-        ref: 'v4.9.7' # CHANGED: Updated to the correct Veyon version
+        ref: 'v4.9.7'
 
-    # 4. Set up the Visual Studio developer environment (CRITICAL FIX)
+    # 4. Set up the Visual Studio developer environment (The correct, standard way)
     - name: Setup MSVC Developer Environment
       uses: microsoft/setup-msvc-dev@v2
 
-    # 5. Build Veyon from source
+    # 5. Build Veyon from source (Using default shell)
     - name: Build Veyon
-      shell: cmd
       run: |
         cd veyon_src
         cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
 
-    # 6. Build the VeyonChat plugin
+    # 6. Build the VeyonChat plugin (Using default shell)
     - name: Build Plugin
-      shell: cmd
       run: |
         cd plugin_src
-        set VEYON_BUILD_DIR=%GITHUB_WORKSPACE%/veyon_src/build
+        $env:VEYON_BUILD_DIR = "$env:GITHUB_WORKSPACE\veyon_src\build"
         qmake VeyonChat.pro
         nmake /f Makefile.Release
+      env:
+        # This is needed because we are now in PowerShell
+        QT_PLUGIN_PATH: ${{ env.Qt5_Dir }}\plugins
 
     # 7. Package the compiled files into a zip archive
     - name: Upload Artifact
@@ -70,4 +61,3 @@ jobs:
         path: |
           plugin_src/release/VeyonChat.dll
           plugin_src/plugin.json
-
