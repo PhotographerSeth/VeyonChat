@@ -1,6 +1,10 @@
 # This is the updated GitHub Actions workflow file.
-# It now includes a crucial step to set up the Visual Studio
-# developer environment, which makes the 'nmake' compiler tool available.
+#
+# Key Fixes:
+# 1. Reinstated the official 'microsoft/setup-msvc-dev' action. This is the
+#    most reliable way to add the Visual Studio build tools (like nmake.exe)
+#    to the command path.
+# 2. Updated the Veyon source code version to the user-specified 'v4.9.7'.
 
 name: Build Veyon Plugin
 
@@ -35,10 +39,9 @@ jobs:
       with:
         repository: veyon/veyon
         path: veyon_src
-        ref: 'v4.8.3' # Use a specific, stable tag for Veyon
+        ref: 'v4.9.7' # CHANGED: Updated to the correct Veyon version
 
-    # 4. NEW STEP: Set up the Visual Studio developer environment
-    #    This is required to make 'nmake.exe' available for CMake.
+    # 4. Set up the Visual Studio developer environment (CRITICAL FIX)
     - name: Setup MSVC Developer Environment
       uses: microsoft/setup-msvc-dev@v2
 
@@ -67,3 +70,4 @@ jobs:
         path: |
           plugin_src/release/VeyonChat.dll
           plugin_src/plugin.json
+
