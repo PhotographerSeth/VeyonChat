@@ -14,13 +14,14 @@ jobs:
       QT_VERSION: "6.8.3"
 
     steps:
-      # 1) Checkout Veyon source (workspace only)
+      # 1) Checkout Veyon source (get full history to quiet version logic)
       - name: Checkout Veyon
         uses: actions/checkout@v4
         with:
           repository: veyon/veyon
           ref: "v${{ env.VEYON_VERSION }}"
           path: veyon
+          fetch-depth: 0
 
       # 2) Checkout YOUR plugin repo into veyon/plugins/chat
       - name: Checkout VeyonChat into plugins/chat
@@ -28,7 +29,8 @@ jobs:
         with:
           path: veyon/plugins/chat
 
-      # 3) Install Qt (MSVC x64)
+      # 3) Install Qt (MSVC x64) + REQUIRED MODULES
+      #    Core5Compat == 'qt5compat' in aqt/jurplel action
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -36,15 +38,15 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          # add modules if needed (e.g., qt5compat, network)
+          modules: "qt5compat,qttools,qtsvg"
 
-      # 4) Set up MSVC environment (auto-detects latest toolset)
+      # 4) Set up MSVC environment (auto-detect latest toolset)
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
-      # 5) Verify compiler safely (no D8003 error)
+      # 5) Verify compiler safely (avoid D8003)
       - name: Verify MSVC toolchain
         shell: pwsh
         run: |
@@ -77,20 +79,17 @@ jobs:
           $out = "artifacts"
           New-Item -ItemType Directory -Force -Path $out | Out-Null
 
-          # Common output directory
           $pluginDir = Join-Path $b "plugins/chat"
           if (Test-Path $pluginDir) {
             Copy-Item -Recurse "$pluginDir/*" $out/
           }
 
-          # Include plugin.json if not installed automatically
           if (Test-Path "veyon/plugins/chat/plugin.json") {
             Copy-Item "veyon/plugins/chat/plugin.json" "$out/" -Force
           } elseif (Test-Path "veyon/plugins/chat/plugins/VeyonChat/plugin.json") {
             Copy-Item "veyon/plugins/chat/plugins/VeyonChat/plugin.json" "$out/" -Force
           }
 
-          # Fallback: find chat.dll anywhere in the build tree
           if (-not (Get-ChildItem $out -Filter "chat.*" -Recurse)) {
             Get-ChildItem -Path $b -Recurse -Include "chat.dll","chat.pdb" |
               Copy-Item -Destination $out -Force
