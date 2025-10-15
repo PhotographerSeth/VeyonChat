@@ -1,5 +1,6 @@
 # This is the updated GitHub Actions workflow file.
-# It now uses a reliable and currently maintained action to install Qt.
+# It now includes a crucial step to set up the Visual Studio
+# developer environment, which makes the 'nmake' compiler tool available.
 
 name: Build Veyon Plugin
 
@@ -22,8 +23,6 @@ jobs:
         path: plugin_src
 
     # 2. Install the required version of Qt
-    #    UPDATED ACTION: Switched from the unavailable 'miroslavr' action
-    #    to the well-maintained 'jurplel' action.
     - name: Install Qt
       uses: jurplel/install-qt-action@v3
       with:
@@ -38,7 +37,12 @@ jobs:
         path: veyon_src
         ref: 'v4.8.3' # Use a specific, stable tag for Veyon
 
-    # 4. Build Veyon from source
+    # 4. NEW STEP: Set up the Visual Studio developer environment
+    #    This is required to make 'nmake.exe' available for CMake.
+    - name: Setup MSVC Developer Environment
+      uses: microsoft/setup-msvc-dev@v2
+
+    # 5. Build Veyon from source
     - name: Build Veyon
       shell: cmd
       run: |
@@ -46,7 +50,7 @@ jobs:
         cmake -S . -B build -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
 
-    # 5. Build the VeyonChat plugin
+    # 6. Build the VeyonChat plugin
     - name: Build Plugin
       shell: cmd
       run: |
@@ -55,7 +59,7 @@ jobs:
         qmake VeyonChat.pro
         nmake /f Makefile.Release
 
-    # 6. Package the compiled files into a zip archive
+    # 7. Package the compiled files into a zip archive
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
