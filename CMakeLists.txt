@@ -1,53 +1,86 @@
-cmake_minimum_required(VERSION 3.21)
-project(veyon-chat-plugin LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
+project(VeyonChat LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
-# Qt (same major as Veyon 4.9.x in Actions step below)
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+set(QT_MIN_VERSION 5.12)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Gui Widgets Network)
+find_package(Qt${QT_VERSION_MAJOR} ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Widgets Network)
 
-# Use your current filenames as-is (root-level files in your repo)
-set(CHAT_SRC
-  "${CMAKE_CURRENT_SOURCE_DIR}/ChatPlugin.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/MasterChatDialog.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/ClientChatDialog.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/ChatPlugin.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/MasterChatDialog.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/ClientChatDialog.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/plugin.json"
-)
-
-# Bundle your existing resources.qrc (root-level)
-qt6_add_resources(CHAT_QRC "${CMAKE_CURRENT_SOURCE_DIR}/resources.qrc")
-
-# Build a MODULE (plugin) so it drops as chat.dll on Windows
-add_library(chat MODULE ${CHAT_SRC} ${CHAT_QRC})
-
-target_include_directories(chat PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_compile_definitions(chat PRIVATE QT_NO_KEYWORDS)
-target_link_libraries(chat PRIVATE Qt6::Widgets)
-
-# If we are inside the Veyon build, these targets exist — link to them.
-foreach(tgt IN ITEMS veyon-core veyon::core VeyonCore)
-  if(TARGET ${tgt})
-    target_link_libraries(chat PRIVATE ${tgt})
-    set(_VEYON_CORE_FOUND ON)
-    break()
-  endif()
-endforeach()
-foreach(tgt IN ITEMS veyon-master veyon::master VeyonMaster)
-  if(TARGET ${tgt})
-    target_link_libraries(chat PRIVATE ${tgt})
-    set(_VEYON_MASTER_FOUND ON)
-    break()
-  endif()
-endforeach()
-
-if(NOT _VEYON_CORE_FOUND OR NOT _VEYON_MASTER_FOUND)
-  message(STATUS "Note: Veyon core/master targets not found. (Fine when configuring out-of-tree, but not used in Option A.)")
+if(QT_VERSION_MAJOR EQUAL 6)
+    find_package(Qt6 OPTIONAL_COMPONENTS Core5Compat)
 endif()
 
-# Install next to other Veyon plugins
-install(TARGETS chat RUNTIME DESTINATION "plugins" LIBRARY DESTINATION "plugins")
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/plugin.json" DESTINATION "plugins/VeyonChat")
+if(NOT DEFINED ENV{VEYON_BUILD_DIR} OR "$ENV{VEYON_BUILD_DIR}" STREQUAL "")
+    message(FATAL_ERROR "The VEYON_BUILD_DIR environment variable must be set to the root of a Veyon build tree.")
+endif()
+
+set(VEYON_BUILD_DIR "$ENV{VEYON_BUILD_DIR}")
+
+find_library(VEYON_CORE_LIBRARY
+    NAMES VeyonCore
+    HINTS "${VEYON_BUILD_DIR}/lib" "${VEYON_BUILD_DIR}/lib64"
+)
+
+find_library(VEYON_MASTER_LIBRARY
+    NAMES VeyonMaster
+    HINTS "${VEYON_BUILD_DIR}/lib" "${VEYON_BUILD_DIR}/lib64"
+)
+
+if(NOT VEYON_CORE_LIBRARY)
+    message(FATAL_ERROR "Could not find the VeyonCore library. Ensure VEYON_BUILD_DIR points to a compiled Veyon tree.")
+endif()
+
+if(NOT VEYON_MASTER_LIBRARY)
+    message(FATAL_ERROR "Could not find the VeyonMaster library. Ensure VEYON_BUILD_DIR points to a compiled Veyon tree.")
+endif()
+
+add_library(VeyonChat SHARED
+    src/ChatPlugin.cpp
+    src/MasterChatDialog.cpp
+    src/ClientChatDialog.cpp
+    resources/resources.qrc
+)
+
+set(QT_LINK_LIBRARIES
+    Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Gui
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::Network
+)
+
+if(QT_VERSION_MAJOR EQUAL 6 AND TARGET Qt6::Core5Compat)
+    list(APPEND QT_LINK_LIBRARIES Qt6::Core5Compat)
+endif()
+
+target_include_directories(VeyonChat
+    PRIVATE
+        "${VEYON_BUILD_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+
+target_compile_definitions(VeyonChat
+    PRIVATE
+        VEYON_CHAT_PLUGIN_SHARED
+)
+
+if(QT_VERSION_MAJOR EQUAL 6 AND TARGET Qt6::Core5Compat)
+    target_compile_definitions(VeyonChat
+        PRIVATE
+            QT_DISABLE_DEPRECATED_BEFORE=0x050F00
+    )
+endif()
+
+target_link_libraries(VeyonChat
+    PRIVATE
+        ${VEYON_CORE_LIBRARY}
+        ${VEYON_MASTER_LIBRARY}
+        ${QT_LINK_LIBRARIES}
+)
+
+install(TARGETS VeyonChat DESTINATION VeyonChat)
+install(FILES plugin.json DESTINATION VeyonChat)

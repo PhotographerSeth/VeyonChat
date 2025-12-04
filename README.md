@@ -21,9 +21,10 @@ VeyonChat is an experimental Veyon plugin that adds a bidirectional chat channel
 
 ## Building
 1. Build Veyon from source and note the directory that contains the compiled headers and libraries.
-2. Set the `VEYON_BUILD_DIR` environment variable to that directory before invoking `qmake`/Qt Creator. The `.pro` file uses it to locate `VeyonCore` and `VeyonMaster` headers and libraries.
-3. Configure a **Release** build in Qt Creator (or via the CLI) and build the project. The output is a shared library (`VeyonChat.dll`/`libVeyonChat.so`).
-4. Copy the resulting library and `plugin.json` into a `VeyonChat` subfolder inside Veyon’s `plugins` directory on the target machines.
+2. Set the `VEYON_BUILD_DIR` environment variable to that directory before invoking the build system. Both the qmake project (`VeyonChat.pro`) and the CMake build use it to locate `VeyonCore` and `VeyonMaster` headers and libraries.
+3. **CMake build**: run `cmake -S . -B build` (choose a generator that matches your toolchain) followed by `cmake --build build --config Release`. The project automatically detects Qt 5 or Qt 6; when building with Qt 6 the optional `Qt6::Core5Compat` module is linked if available. The resulting module and `plugin.json` are staged in `build/VeyonChat` when you run `cmake --install build`.
+4. **qmake build**: configure a **Release** build in Qt Creator (or via the CLI) and build the project. The output is a shared library (`VeyonChat.dll`/`libVeyonChat.so`).
+5. Copy the resulting library and `plugin.json` into a `VeyonChat` subfolder inside Veyon’s `plugins` directory on the target machines.
 
 ## Next steps
 - Replace the pseudo-code in the send/receive methods with real Veyon RPC calls so messages travel over the established Veyon connection.
