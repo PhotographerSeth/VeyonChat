@@ -11,7 +11,7 @@ jobs:
 
     env:
       VEYON_VERSION: "4.9.7"
-      QT_VERSION: "6.7.3"
+      QT_VERSION: "6.6.3"
 
     steps:
       # 1) Checkout Veyon source (full history quiets version logic)
