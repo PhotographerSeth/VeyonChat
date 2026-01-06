@@ -11,7 +11,7 @@ jobs:
 
     env:
       VEYON_VERSION: "4.9.7"
-      QT_VERSION: "6.6.3"
+      QT_VERSION: "6.5.3"
 
     steps:
       # 1) Checkout Veyon source (full history quiets version logic)
@@ -36,7 +36,7 @@ jobs:
           version: ${{ env.QT_VERSION }}
           host: windows
           target: desktop
-          arch: win64_msvc2022_64
+          arch: win64_msvc2019_64
           modules: "qt5compat qttools qtsvg"
 
       # (Optional) Show which modules are available for this version/arch if you ever need to debug
@@ -50,6 +50,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+          toolset: 14.29
 
       # 5) Safe compiler check (no nonzero exit like D8003)
       - name: Verify MSVC toolchain
