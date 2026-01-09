@@ -14,6 +14,7 @@ jobs:
       QT_VERSION: "6.8.3"
 
     steps:
+      # 1) Checkout Veyon source (full history quiets version logic)
       - name: Checkout Veyon
         uses: actions/checkout@v4
         with:
@@ -22,30 +23,35 @@ jobs:
           path: veyon
           fetch-depth: 0
 
+      # 2) Checkout YOUR plugin into veyon/plugins/chat (keep your filenames as-is)
       - name: Checkout VeyonChat into plugins/chat
         uses: actions/checkout@v4
         with:
           path: veyon/plugins/chat
 
-      # NEW: ensure Python is the real one (prevents WindowsApps alias/EACCES noise)
+      # 3) Force a real Python early (avoids WindowsApps python alias weirdness)
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # NEW: install Ninja because you are using the Ninja generator
-      - name: Install Ninja
+      # 4) Ensure Ninja exists (you use -G "Ninja")
+      - name: Ensure Ninja
         shell: pwsh
-        run: choco install ninja -y
+        run: |
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
+            choco install ninja -y
+          }
+          where ninja
 
-      # Optional but very useful when Qt module install fails
+      # 5) (Debug) Show which Qt modules exist for this version/arch
       - name: List available Qt modules (debug)
         shell: pwsh
         run: |
           python -m pip install --upgrade pip aqtinstall
           python -m aqt list-qt windows desktop --modules $env:QT_VERSION win64_msvc2022_64
 
-      # Qt install: if this step fails again, remove "modules:" entirely (see note below)
+      # 6) Install Qt (ONLY request modules that actually exist per the list step)
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -53,13 +59,19 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          modules: "qt5compat qttools qtsvg"
+          modules: "qt5compat"
+          install-deps: true
+          cache: false
+          set-env: true
+          add-tools-to-path: true
 
+      # 7) Set up MSVC toolchain
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
+      # 8) Safe compiler check
       - name: Verify MSVC toolchain
         shell: pwsh
         run: |
@@ -68,6 +80,7 @@ jobs:
           where link
           where ninja
 
+      # 9) Enable your plugin inside the Veyon workspace (workspace-only patch)
       - name: Enable chat plugin
         shell: pwsh
         working-directory: veyon/plugins
@@ -75,6 +88,7 @@ jobs:
           $cm = Join-Path $PWD "CMakeLists.txt"
           Add-Content -Path $cm -Value "`n# Injected by CI: build chat plugin`nadd_subdirectory(chat)`n"
 
+      # 10) Configure + build
       - name: Configure (CMake)
         working-directory: veyon
         shell: pwsh
@@ -87,6 +101,7 @@ jobs:
         run: |
           cmake --build build --config Release --parallel
 
+      # 11) Collect plugin artifacts
       - name: Gather artifacts
         shell: pwsh
         run: |
@@ -110,6 +125,7 @@ jobs:
               Copy-Item -Destination $out -Force
           }
 
+      # 12) Upload artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
