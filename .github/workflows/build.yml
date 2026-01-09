@@ -1,4 +1,4 @@
-name: Build VeyonChat (in-tree)
+name: Build Veyon + VeyonChat (Windows)
 
 on:
   push:
@@ -12,9 +12,10 @@ jobs:
     env:
       VEYON_VERSION: "4.9.7"
       QT_VERSION: "6.8.3"
+      VCPKG_DEFAULT_TRIPLET: x64-windows
 
     steps:
-      # 1) Checkout Veyon source (full history quiets version logic)
+      # 1) Checkout Veyon source
       - name: Checkout Veyon
         uses: actions/checkout@v4
         with:
@@ -23,111 +24,60 @@ jobs:
           path: veyon
           fetch-depth: 0
 
-      # 2) Checkout YOUR plugin into veyon/plugins/chat (keep your filenames as-is)
+      # 2) Checkout YOUR plugin into veyon/plugins/chat
       - name: Checkout VeyonChat into plugins/chat
         uses: actions/checkout@v4
         with:
           path: veyon/plugins/chat
 
-      # 3) Force a real Python early (avoids WindowsApps python alias weirdness)
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      # 4) Ensure Ninja exists (you use -G "Ninja")
-      - name: Ensure Ninja
-        shell: pwsh
-        run: |
-          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
-            choco install ninja -y
-          }
-          where ninja
-
-      # 5) (Debug) Show which Qt modules exist for this version/arch
-      - name: List available Qt modules (debug)
-        shell: pwsh
-        run: |
-          python -m pip install --upgrade pip aqtinstall
-          python -m aqt list-qt windows desktop --modules $env:QT_VERSION win64_msvc2022_64
-
-      # 6) Install Qt (ONLY request modules that actually exist per the list step)
+      # 3) Install Qt (match whatever Veyon expects in your version)
       - name: Install Qt
+        id: install-qt
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
-          host: windows
-          target: desktop
           arch: win64_msvc2022_64
-          modules: "qt5compat"
-          install-deps: true
-          cache: false
-          set-env: true
-          add-tools-to-path: true
+          # If Veyon needs more Qt modules than Widgets, add them here.
+          # Common add-ons: qtbase qttools qtsvg qttranslations
+          # modules: "qttools qtsvg"
 
-      # 7) Set up MSVC toolchain
-      - name: Set up MSVC
-        uses: ilammy/msvc-dev-cmd@v1
+      # 4) Install QCA (and friends) via vcpkg so Qca-qt6Config.cmake exists
+      - name: Setup vcpkg (QCA)
+        uses: microsoft/vcpkg-action@v1
         with:
-          arch: x64
+          pkgs: qca
+          triplet: x64-windows
 
-      # 8) Safe compiler check
-      - name: Verify MSVC toolchain
+      # 5) Configure Veyon using the vcpkg toolchain + Qt prefix
+      - name: Configure Veyon
         shell: pwsh
-        run: |
-          cl /? > $null
-          where cl
-          where link
-          where ninja
+        run: >
+          cmake -S veyon -B veyon/build
+          -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}\scripts\buildsystems\vcpkg.cmake"
+          -DCMAKE_PREFIX_PATH="${{ env.VCPKG_ROOT }}\installed\x64-windows;${{ steps.install-qt.outputs.Qt6_DIR }}"
 
-      # 9) Enable your plugin inside the Veyon workspace (workspace-only patch)
-      - name: Enable chat plugin
+      # 6) Build Veyon (this will also build your in-tree plugin if Veyon picks it up)
+      - name: Build Veyon
         shell: pwsh
-        working-directory: veyon/plugins
-        run: |
-          $cm = Join-Path $PWD "CMakeLists.txt"
-          Add-Content -Path $cm -Value "`n# Injected by CI: build chat plugin`nadd_subdirectory(chat)`n"
+        run: >
+          cmake --build veyon/build --config Release --parallel
 
-      # 10) Configure + build
-      - name: Configure (CMake)
-        working-directory: veyon
+      # 7) (Optional) If Veyon doesn't automatically add plugins/chat, build it explicitly
+      - name: Build Chat Plugin (explicit)
         shell: pwsh
-        run: |
-          cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+        run: >
+          cmake --build veyon/build --config Release --target chat
+        continue-on-error: true
 
-      - name: Build (CMake)
-        working-directory: veyon
-        shell: pwsh
-        run: |
-          cmake --build build --config Release --parallel
-
-      # 11) Collect plugin artifacts
-      - name: Gather artifacts
-        shell: pwsh
-        run: |
-          $b = Resolve-Path "veyon/build"
-          $out = "artifacts"
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-
-          $pluginDir = Join-Path $b "plugins/chat"
-          if (Test-Path $pluginDir) {
-            Copy-Item -Recurse "$pluginDir/*" $out/
-          }
-
-          if (Test-Path "veyon/plugins/chat/plugin.json") {
-            Copy-Item "veyon/plugins/chat/plugin.json" "$out/" -Force
-          } elseif (Test-Path "veyon/plugins/chat/plugins/VeyonChat/plugin.json") {
-            Copy-Item "veyon/plugins/chat/plugins/VeyonChat/plugin.json" "$out/" -Force
-          }
-
-          if (-not (Get-ChildItem $out -Filter "chat.*" -Recurse)) {
-            Get-ChildItem -Path $b -Recurse -Include "chat.dll","chat.pdb" |
-              Copy-Item -Destination $out -Force
-          }
-
-      # 12) Upload artifact
-      - name: Upload artifact
+      # 8) (Optional) Upload artifacts (adjust paths after you confirm where outputs land)
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: veyon-chat-windows-x64
-          path: artifacts
+          name: veyon-windows-release
+          path: |
+            veyon/build/**/Release/*.exe
+            veyon/build/**/Release/*.dll
+            veyon/build/**/Release/*.pdb
+            veyon/build/**/plugins/**/*
+          if-no-files-found: warn
